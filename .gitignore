@@ -1,0 +1,6 @@
+
+/scripts/.idea
+*.pdf
+/scripts/bin
+
+.fake
