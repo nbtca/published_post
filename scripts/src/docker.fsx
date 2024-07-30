@@ -14,7 +14,7 @@ type DockerConnector() =
                 "unix:///var/run/docker.sock"
         new DockerClientConfiguration(Uri(url))
     let client = config.CreateClient()
-    member this.pipeLogs id =
+    member _.pipeLogs id =
         let rec loop (stream: MultiplexedStream) = task {
             let buffer = Array.zeroCreate<byte> 4096
             let! read = stream.ReadOutputAsync(buffer, 0, buffer.Length, Unchecked.defaultof<CancellationToken>)
@@ -44,7 +44,29 @@ type DockerConnector() =
         member _.Dispose() =
             config.Dispose()
             client.Dispose()
+    member this.PullImageAsync image tag =
+        client.Images.CreateImageAsync(
+            ImagesCreateParameters(FromImage = image, Tag = tag),
+            null,
+            Progress<JSONMessage>(fun message -> Console.WriteLine(message.ProgressMessage))
+        )
+    member private _.HasImage image tag = task {
+        let! images = client.Images.ListImagesAsync(new ImagesListParameters())
+        return
+            images
+            |> Seq.exists (fun i -> i.RepoTags |> Seq.exists (fun t -> t = $"{image}:{tag}"))
+    }
+    static member private SplitImageTag(image: string) =
+        let parts = image.Split ':'
+        if parts.Length = 1 then
+            parts.[0], "latest"
+        else
+            parts.[0], parts.[1]
     member this.RunContainerOnceAsync(config: CreateContainerParameters) = task {
+        let image, tag = DockerConnector.SplitImageTag config.Image
+        let! hasImage = this.HasImage image tag
+        if not hasImage then
+            do! this.PullImageAsync image tag
         let! createResponse = client.Containers.CreateContainerAsync(config)
         let id = createResponse.ID
         let! success = client.Containers.StartContainerAsync(id, null)
@@ -55,3 +77,21 @@ type DockerConnector() =
         let! _ = client.Containers.RemoveContainerAsync(id, new ContainerRemoveParameters(Force = true))
         return ()
     }
+
+
+// if not read.EOF then
+//     if read.Count > 0 then
+
+
+// if (read.Count > 0)
+// {
+//     var output = Encoding.UTF8.GetString(buffer, 0, read.Count);
+//     if (read.Stream == Docker.DotNet.Models.StreamType.Stdout)
+//     {
+//         Console.WriteLine("STDOUT: " + output);
+//     }
+//     else if (read.Stream == Docker.DotNet.Models.StreamType.Stderr)
+//     {
+//         Console.WriteLine("STDERR: " + output);
+//     }
+// }
