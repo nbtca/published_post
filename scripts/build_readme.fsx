@@ -15,8 +15,14 @@ let buildContent () =
     let append info fileM filePC =
         let convertName file =
             Path.GetRelativePath(cd, file).Replace("\\", "/")
-        !+ $"- <a href=\"./{convertName filePC}\">{info.Title}</a> {info.Date}\n"
+        let imageUrl = info.Image
+        !+ $"- <a href=\"./{convertName filePC}\">{info.Title}</a> \n"
+        !+ $"  - <img src=\"{imageUrl}\" width=\"100\" height=\"100\" />\n"
         !+ $"  - <a href=\"./{convertName fileM}\">移动端</a>\n"
+        !+ $"  - 描述: {info.Description}\n"
+        !+ $"  - 作者: {info.Author}\n"
+        !+ $"  - 日期: {info.Date}\n"
+
 
     for dir in Directory.EnumerateDirectories dataDir do
         try
