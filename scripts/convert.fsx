@@ -24,7 +24,7 @@ let rec convert from saveTo = async {
                     [| "pdf2htmlEX"
                        "--zoom"
                        "1"
-                       "--external-hint-tool=ttfautohint"
+                       //    "--external-hint-tool=ttfautohint"
                        //    "--embed=cfijo"
                        randomName
                        randomOutput |],
@@ -34,11 +34,10 @@ let rec convert from saveTo = async {
         let output = Path.Combine(tempDir, randomOutput)
         File.Move(output, saveTo, true)
         File.Delete(tempFile)
-        postProcess saveTo
     with ex ->
         printfn "convert failed %s: %s" from ex.Message
 }
-and postProcess file =
+and postProcess (info: ArticleInfo) file saveTo =
     let content = file |> File.ReadAllText
     let replace regex (replacement: string) (text: string) =
         RegularExpressions.Regex.Replace(text, regex, replacement)
@@ -49,32 +48,45 @@ and postProcess file =
         |> replace "@media print" "@media screen"
         |> remove """<img alt="" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACA.*?/>"""
         |> remove """#page-container.+\n.*9e9e9e.*\n.*\n.*(\s|\S)+?\}"""
-        |> replace "<title></title>" "<title>标题</title>"
-    File.WriteAllText(file, result)
-
-let convertAll dataDir = async {
+        |> replace "<title></title>" $"<title>%s{info.Title}</title>"
+    File.WriteAllText(saveTo, result)
+let convertAll dataDir postsDir = async {
     do!
         [ for dir in Directory.EnumerateDirectories dataDir do
               async {
-                  printfn "%s" dir
-                  let files = Directory.EnumerateFiles dir
-                  let info =
-                      files
-                      |> Seq.find _.EndsWith(".json")
-                      |> File.ReadAllText
-                      |> JsonConvert.DeserializeObject<ArticleInfo>
-                  let pdfFiles = files |> Seq.filter _.EndsWith(".pdf")
-                  printfn "%A" info
-                  printfn "%A" pdfFiles
-                  for pdf in pdfFiles do
-                      let saveTo = Path.Combine(dir, Path.ChangeExtension(Path.GetFileName(pdf), ".html"))
-                      if saveTo |> File.Exists |> not then
-                          do! convert pdf saveTo
+                  try
+                      //   printfn "%s" dir
+                      let files = Directory.EnumerateFiles dir
+                      let info =
+                          files
+                          |> Seq.find _.EndsWith(".json")
+                          |> File.ReadAllText
+                          |> JsonConvert.DeserializeObject<ArticleInfo>
+                      let pdfFiles = files |> Seq.filter _.EndsWith(".pdf")
+                      //   printfn "%A" info
+                      //   printfn "%A" pdfFiles
+                      for pdf in pdfFiles do
+                          let filename = Path.GetFileName(pdf)
+                          let saveToRaw = Path.Combine(dir, Path.ChangeExtension(filename, ".raw.html"))
+                          //2016年11月09日 22:43
+                          let dateTimeStr =
+                              let time = System.DateTime.ParseExact(info.Date, "yyyy年MM月dd日 HH:mm", null)
+                              time.ToString("yyyy-MM-dd_HH-mm")
+                          let saveToDir = Path.Combine(postsDir, dateTimeStr)
+                          let saveTo = Path.Combine(saveToDir, Path.ChangeExtension(filename, ".html"))
+                          if saveToRaw |> File.Exists |> not then
+                              do! convert pdf saveToRaw
+                          if saveToDir |> Directory.Exists |> not then
+                              Directory.CreateDirectory saveToDir |> ignore
+                          postProcess info saveToRaw saveTo
+                  with ex ->
+                      printfn "convertAll failed %s: %s" dir ex.Message
               } ]
         |> Async.Parallel
         |> Async.Ignore
 }
 
 let dataDir = Path.Combine(cd |> Path.GetDirectoryName, "data")
+let postsDir = Path.Combine(cd |> Path.GetDirectoryName, "posts")
 Directory.CreateDirectory dataDir |> ignore
-convertAll dataDir |> Async.RunSynchronously
+convertAll dataDir postsDir |> Async.RunSynchronously
