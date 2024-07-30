@@ -69,9 +69,7 @@ let convertAll dataDir postsDir = async {
                           let filename = Path.GetFileName(pdf)
                           let saveToRaw = Path.Combine(dir, Path.ChangeExtension(filename, ".raw.html"))
                           //2016年11月09日 22:43
-                          let dateTimeStr =
-                              let time = System.DateTime.ParseExact(info.Date, "yyyy年MM月dd日 HH:mm", null)
-                              time.ToString("yyyy-MM-dd_HH-mm")
+                          let dateTimeStr = info.DateTimeStr
                           let saveToDir = Path.Combine(postsDir, dateTimeStr)
                           let saveTo = Path.Combine(saveToDir, Path.ChangeExtension(filename, ".html"))
                           if saveToRaw |> File.Exists |> not then

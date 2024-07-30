@@ -18,3 +18,6 @@ type ArticleInfo =
           Location = null
           FilePathPC = null
           FilePathMobile = null }
+    member this.DateTimeStr =
+        let time = System.DateTime.ParseExact(this.Date, "yyyy年MM月dd日 HH:mm", null)
+        time.ToString("yyyy-MM-dd_HH-mm")
