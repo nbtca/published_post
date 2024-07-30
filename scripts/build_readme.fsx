@@ -22,6 +22,7 @@ let buildContent () =
         !+ $"  - 描述: {info.Description}\n"
         !+ $"  - 作者: {info.Author}\n"
         !+ $"  - 日期: {info.Date}\n"
+        !+ $"  - <a href=\"{info.Url}\">查看原文</a>\n"
 
 
     for dir in Directory.EnumerateDirectories dataDir do
